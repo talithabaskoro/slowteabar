@@ -5,69 +5,122 @@
   <title>Slow Tea Bar POS</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
+    .topbar { display:flex; gap:12px; align-items:center; margin-bottom: 12px; }
     .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
     .btn { display: inline-block; padding: 14px 16px; margin: 6px; border: 1px solid #ccc; border-radius: 10px; background: #f6f6f6; cursor: pointer; }
     .btn:hover { background: #eee; }
     .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; }
     table { width: 100%; border-collapse: collapse; }
-    td { padding: 8px; border-bottom: 1px solid #eee; }
+    td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
     .rowbtn { padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    .muted { color:#666; font-size: 12px; }
+    select { padding: 8px; border-radius: 10px; border: 1px solid #ccc; }
+    a { color: inherit; }
   </style>
 </head>
 <body>
   <h2>Slow Tea Bar — POS</h2>
 
-  <p>
-    First run? Open <code>/init</code> once to create DB + sample menu.
-  </p>
-
-  <div class="grid">
-    <div class="card">
-      <h3>Menu</h3>
-      {% for b in beverages %}
-      <form method="post" action="/cart/add/{{b.id}}" style="display:inline">
-        <button class="btn" type="submit">{{b.name}}<br>Rp {{"{:,}".format(b.price)}}</button>
-      </form>
-      {% endfor %}
+  <div class="topbar">
+    <div class="muted">
+      Admin: <a href="/admin">/admin</a> • <a href="/admin/logout">logout</a>
     </div>
-
-    <div class="card">
-      <h3>Cart</h3>
-      {% if items %}
-      <table>
-        {% for it in items %}
-        <tr>
-          <td>
-            <b>{{it.name}}</b><br>
-            Rp {{"{:,}".format(it.price)}} × {{it.qty}} = Rp {{"{:,}".format(it.line_total)}}
-          </td>
-          <td style="text-align:right">
-            <form method="post" action="/cart/inc/{{it.id}}" style="display:inline">
-              <button class="rowbtn" type="submit">+</button>
-            </form>
-            <form method="post" action="/cart/dec/{{it.id}}" style="display:inline">
-              <button class="rowbtn" type="submit">−</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </table>
-
-      <h3>Total: Rp {{"{:,}".format(total)}}</h3>
-
-      <form method="post" action="/checkout">
-        <label>Payment:</label>
-        <select name="payment_method">
-          <option value="cash">Cash</option>
-          <option value="qris">QRIS</option>
-          <option value="transfer">Transfer</option>
-        </select>
-        <button class="btn" type="submit">Checkout</button>
-      </form>
-      {% else %}
-      <p>Empty cart.</p>
-      {% endif %}
+    <div style="margin-left:auto" class="muted">
+      First run? Open <code>/init</code> once.
     </div>
   </div>
+
+  <!-- One form wraps selectors + menu buttons so every click sends the selected options -->
+  <form method="post" action="/cart/add">
+    <div class="card" style="margin-bottom: 14px;">
+      <b>Options (applies to the next drink you tap)</b>
+      <div style="display:flex; gap:12px; margin-top:10px; flex-wrap:wrap;">
+        <div>
+          <div class="muted">Size</div>
+          <select name="size">
+            <option value="regular" {% if selected_size=="regular" %}selected{% endif %}>Regular</option>
+            <option value="large" {% if selected_size=="large" %}selected{% endif %}>Large</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="muted">Sugar</div>
+          <select name="sugar">
+            <option value="less" {% if selected_sugar=="less" %}selected{% endif %}>Less</option>
+            <option value="default" {% if selected_sugar=="default" %}selected{% endif %}>Default</option>
+            <option value="more" {% if selected_sugar=="more" %}selected{% endif %}>More</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="muted">Ice</div>
+          <select name="ice">
+            <option value="less" {% if selected_ice=="less" %}selected{% endif %}>Less</option>
+            <option value="default" {% if selected_ice=="default" %}selected{% endif %}>Default</option>
+            <option value="more" {% if selected_ice=="more" %}selected{% endif %}>More</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Menu</h3>
+        {% for b in beverages %}
+          <button class="btn" type="submit" name="bev_id" value="{{b.id}}">
+            {{b.name}}<br>
+            <span class="muted">Reg Rp {{ "{:,}".format(b.price_regular) }} • Lg Rp {{ "{:,}".format(b.price_large) }}</span>
+          </button>
+        {% endfor %}
+      </div>
+
+      <div class="card">
+        <h3>Cart</h3>
+        {% if items %}
+        <table>
+          {% for it in items %}
+          <tr>
+            <td>
+              <b>{{it.name}}</b><br>
+              <span class="muted">
+                Size: {{it.size}} • Sugar: {{it.sugar}} • Ice: {{it.ice}}
+              </span><br>
+              Rp {{ "{:,}".format(it.unit_price) }} × {{it.qty}} = Rp {{ "{:,}".format(it.line_total) }}
+            </td>
+            <td style="text-align:right; white-space:nowrap;">
+              <form method="post" action="/cart/inc" style="display:inline">
+                <input type="hidden" name="key" value="{{it.key}}">
+                <button class="rowbtn" type="submit">+</button>
+              </form>
+              <form method="post" action="/cart/dec" style="display:inline">
+                <input type="hidden" name="key" value="{{it.key}}">
+                <button class="rowbtn" type="submit">−</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+
+        <h3>Total: Rp {{ "{:,}".format(total) }}</h3>
+
+        <form method="post" action="/checkout">
+          <label>Payment:</label>
+          <select name="payment_method">
+            <option value="cash">Cash</option>
+            <option value="qris">QRIS</option>
+            <option value="transfer">Transfer</option>
+          </select>
+          <button class="btn" type="submit">Checkout</button>
+        </form>
+
+        <form method="post" action="/cart/clear">
+          <button class="rowbtn" type="submit" style="margin-top:10px;">Clear cart</button>
+        </form>
+        {% else %}
+        <p>Empty cart.</p>
+        {% endif %}
+      </div>
+    </div>
+  </form>
 </body>
 </html>
